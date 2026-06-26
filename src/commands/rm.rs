@@ -113,11 +113,14 @@ pub fn cmd_rm(domain: &str, yes: bool) -> Result<()> {
 
     // 5. Remove system user and its group
     if user_exists {
+        // Remove www-data from the site group first so userdel doesn't warn about members
+        let _ = run_status("gpasswd", &["-d", "www-data", &user]);
+
         match run_status("userdel", &[&user]) {
             Ok(_) => println!("{} user '{user}'", "deleted:".green()),
             Err(e) => println!("{} userdel '{user}': {e}", "warn:".yellow()),
         }
-        // groupdel is a no-op if the group was already removed with the user
+        // groupdel in case the group outlived the user
         let _ = run_status("groupdel", &[&user]);
     }
 

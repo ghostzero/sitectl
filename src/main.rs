@@ -47,11 +47,13 @@ enum Commands {
     },
     /// Clone a GitHub repo and fully provision a new project
     Init {
+        /// Primary domain — determines /var/www/<domain> and nginx server_name
+        domain: String,
         /// GitHub repo slug, e.g. anikeen-com/signed-cards
         repo: String,
-        /// One or more domains (first is primary and determines /var/www/<domain>)
-        #[arg(required = true)]
-        domains: Vec<String>,
+        /// Additional domains to include in the nginx server_name and certbot cert
+        #[arg(short = 'd', long = "domain")]
+        extra_domains: Vec<String>,
         #[arg(long, default_value = "8.3")]
         php: String,
         #[arg(long, help = "Git branch to clone")]
@@ -163,7 +165,9 @@ fn main() -> anyhow::Result<()> {
             EnvAction::Secure { domain } => env::cmd_secure(domain.as_deref()),
         },
         Commands::Audit { domain } => audit::cmd_run(domain.as_deref()),
-        Commands::Init { repo, domains, php, branch } => {
+        Commands::Init { domain, repo, extra_domains, php, branch } => {
+            let mut domains = vec![domain];
+            domains.extend(extra_domains);
             init::cmd_init(&repo, &domains, &php, branch.as_deref())
         }
         Commands::Rm { domain, yes } => rm::cmd_rm(&domain, yes),

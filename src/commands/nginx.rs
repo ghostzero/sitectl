@@ -7,11 +7,16 @@ const AVAILABLE: &str = "/etc/nginx/sites-available";
 const ENABLED: &str = "/etc/nginx/sites-enabled";
 
 fn laravel_vhost(domain: &str, php: &str, web_root: &str) -> String {
-    let socket = fpm_socket_path(domain, php);
+    create_vhost_config(&[domain], domain, php, web_root)
+}
+
+fn create_vhost_config(server_names: &[&str], primary: &str, php: &str, web_root: &str) -> String {
+    let socket = fpm_socket_path(primary, php);
+    let names = server_names.join(" ");
     format!(
         "server {{
-    server_name {domain};
-    root /var/www/{domain}/{web_root};
+    server_name {names};
+    root /var/www/{primary}/{web_root};
 
     add_header X-Content-Type-Options \"nosniff\";
     add_header X-Frame-Options \"SAMEORIGIN\";
@@ -42,6 +47,21 @@ fn laravel_vhost(domain: &str, php: &str, web_root: &str) -> String {
 }}
 "
     )
+}
+
+/// Create a vhost config for multiple domains (first is primary/directory name).
+pub fn create_vhost_multi(domains: &[&str], php: &str, web_root: &str) -> Result<()> {
+    let primary = domains.first().ok_or_else(|| anyhow::anyhow!("no domains provided"))?;
+    let available = format!("{AVAILABLE}/{primary}");
+
+    if std::path::Path::new(&available).exists() {
+        anyhow::bail!("vhost already exists at {available}");
+    }
+
+    let config = create_vhost_config(domains, primary, php, web_root);
+    std::fs::write(&available, config)?;
+    println!("{} {} (domains: {})", "created:".green(), available, domains.join(", "));
+    Ok(())
 }
 
 pub fn cmd_add(domain: &str, php: &str, web_root: &str) -> Result<()> {

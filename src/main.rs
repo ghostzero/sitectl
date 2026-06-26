@@ -3,7 +3,7 @@ use clap::{Parser, Subcommand};
 mod commands;
 mod system;
 
-use commands::{audit, env, fpm, nginx, project};
+use commands::{audit, env, fpm, init, nginx, project};
 
 #[derive(Parser)]
 #[command(name = "sitectl", about = "Web server project administration", version)]
@@ -37,6 +37,18 @@ enum Commands {
     /// Run security audit across all projects (or a single domain)
     Audit {
         domain: Option<String>,
+    },
+    /// Clone a GitHub repo and fully provision a new project
+    Init {
+        /// GitHub repo slug, e.g. anikeen-com/signed-cards
+        repo: String,
+        /// One or more domains (first is primary and determines /var/www/<domain>)
+        #[arg(required = true)]
+        domains: Vec<String>,
+        #[arg(long, default_value = "8.3")]
+        php: String,
+        #[arg(long, help = "Git branch to clone")]
+        branch: Option<String>,
     },
 }
 
@@ -144,5 +156,8 @@ fn main() -> anyhow::Result<()> {
             EnvAction::Secure { domain } => env::cmd_secure(domain.as_deref()),
         },
         Commands::Audit { domain } => audit::cmd_run(domain.as_deref()),
+        Commands::Init { repo, domains, php, branch } => {
+            init::cmd_init(&repo, &domains, &php, branch.as_deref())
+        }
     }
 }

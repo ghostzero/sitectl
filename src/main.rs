@@ -3,7 +3,7 @@ use clap::{Parser, Subcommand};
 mod commands;
 mod system;
 
-use commands::{audit, env, fpm, init, nginx, project};
+use commands::{audit, env, fpm, init, nginx, project, rm};
 
 #[derive(Parser)]
 #[command(name = "sitectl", about = "Web server project administration", version)]
@@ -37,6 +37,13 @@ enum Commands {
     /// Run security audit across all projects (or a single domain)
     Audit {
         domain: Option<String>,
+    },
+    /// Remove a project: nginx vhost, FPM pool, certbot cert, directory, system user
+    Rm {
+        domain: String,
+        /// Actually perform the removal (dry-run without this flag)
+        #[arg(long)]
+        yes: bool,
     },
     /// Clone a GitHub repo and fully provision a new project
     Init {
@@ -159,5 +166,6 @@ fn main() -> anyhow::Result<()> {
         Commands::Init { repo, domains, php, branch } => {
             init::cmd_init(&repo, &domains, &php, branch.as_deref())
         }
+        Commands::Rm { domain, yes } => rm::cmd_rm(&domain, yes),
     }
 }

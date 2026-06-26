@@ -3,7 +3,7 @@ use clap::{Parser, Subcommand};
 mod commands;
 mod system;
 
-use commands::{audit, env, fpm, init, nginx, project, rm, ssl};
+use commands::{audit, backup, env, fpm, init, nginx, project, rm, ssl};
 
 #[derive(Parser)]
 #[command(name = "sitectl", about = "Web server project administration", version)]
@@ -38,6 +38,10 @@ enum Commands {
     Ssl {
         #[command(subcommand)]
         action: SslAction,
+    },
+    /// Back up project files and database to /var/backups/sitectl/<domain>/
+    Backup {
+        domain: String,
     },
     /// Run security audit across all projects (or a single domain)
     Audit {
@@ -184,6 +188,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Ssl { action } => match action {
             SslAction::Enable { domain } => ssl::cmd_enable(&domain),
         },
+        Commands::Backup { domain } => backup::cmd_backup(&domain),
         Commands::Audit { domain } => audit::cmd_run(domain.as_deref()),
         Commands::Init { domain, repo, extra_domains, php, branch, skip_dns_check, no_ssl } => {
             let mut domains = vec![domain];

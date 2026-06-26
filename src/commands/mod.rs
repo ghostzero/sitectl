@@ -1,4 +1,5 @@
 pub mod audit;
+pub mod backup;
 pub mod env;
 pub mod fpm;
 pub mod init;

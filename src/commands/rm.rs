@@ -121,7 +121,9 @@ pub fn cmd_rm(domain: &str, yes: bool) -> Result<()> {
             Err(e) => println!("{} userdel '{user}': {e}", "warn:".yellow()),
         }
         // groupdel in case the group outlived the user
-        let _ = run_status("groupdel", &[&user]);
+        if run("getent", &["group", &user]).is_ok() {
+            let _ = run_status("groupdel", &[&user]);
+        }
     }
 
     println!("\n{} {domain}", "done:".green().bold());

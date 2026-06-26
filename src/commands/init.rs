@@ -4,7 +4,7 @@ use std::os::unix::fs::PermissionsExt;
 
 use crate::system::{check_dns, domain_to_user, fpm_pool_path, run, run_status, user_exists, DnsStatus, WWW_ROOT};
 
-pub fn cmd_init(repo: &str, domains: &[String], php: &str, branch: Option<&str>, skip_dns: bool) -> Result<()> {
+pub fn cmd_init(repo: &str, domains: &[String], php: &str, branch: Option<&str>, skip_dns: bool, no_ssl: bool) -> Result<()> {
     if domains.is_empty() {
         anyhow::bail!("at least one domain is required");
     }
@@ -117,15 +117,19 @@ pub fn cmd_init(repo: &str, domains: &[String], php: &str, branch: Option<&str>,
     super::project::cmd_fix(primary)?;
 
     // 7. Certbot SSL
-    println!("\n{}", "Running certbot for SSL...".bold());
-    let mut certbot_args = vec!["--nginx", "--non-interactive", "--agree-tos"];
-    let d_args: Vec<String> = domains.iter().flat_map(|d| vec!["-d".to_string(), d.clone()]).collect();
-    let d_refs: Vec<&str> = d_args.iter().map(String::as_str).collect();
-    certbot_args.extend_from_slice(&d_refs);
+    if no_ssl {
+        println!("{} SSL skipped (--no-ssl)", "warn:".yellow());
+    } else {
+        println!("\n{}", "Running certbot for SSL...".bold());
+        let mut certbot_args = vec!["--nginx", "--non-interactive", "--agree-tos"];
+        let d_args: Vec<String> = domains.iter().flat_map(|d| vec!["-d".to_string(), d.clone()]).collect();
+        let d_refs: Vec<&str> = d_args.iter().map(String::as_str).collect();
+        certbot_args.extend_from_slice(&d_refs);
 
-    match run_status("certbot", &certbot_args) {
-        Ok(_) => println!("{} SSL certificate issued", "certbot:".green()),
-        Err(e) => println!("{} certbot failed: {e} — configure SSL manually", "warn:".yellow()),
+        match run_status("certbot", &certbot_args) {
+            Ok(_) => println!("{} SSL certificate issued", "certbot:".green()),
+            Err(e) => println!("{} certbot failed: {e} — run certbot manually or use --no-ssl", "warn:".yellow()),
+        }
     }
 
     println!("\n{} {primary}", "done:".green().bold());

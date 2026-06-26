@@ -61,6 +61,9 @@ enum Commands {
         /// Skip DNS verification (use for Cloudflare-proxied or split-horizon DNS)
         #[arg(long)]
         skip_dns_check: bool,
+        /// Skip certbot — leave the site on HTTP only
+        #[arg(long)]
+        no_ssl: bool,
     },
 }
 
@@ -168,10 +171,10 @@ fn main() -> anyhow::Result<()> {
             EnvAction::Secure { domain } => env::cmd_secure(domain.as_deref()),
         },
         Commands::Audit { domain } => audit::cmd_run(domain.as_deref()),
-        Commands::Init { domain, repo, extra_domains, php, branch, skip_dns_check } => {
+        Commands::Init { domain, repo, extra_domains, php, branch, skip_dns_check, no_ssl } => {
             let mut domains = vec![domain];
             domains.extend(extra_domains);
-            init::cmd_init(&repo, &domains, &php, branch.as_deref(), skip_dns_check)
+            init::cmd_init(&repo, &domains, &php, branch.as_deref(), skip_dns_check, no_ssl)
         }
         Commands::Rm { domain, yes } => rm::cmd_rm(&domain, yes),
     }

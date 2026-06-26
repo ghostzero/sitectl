@@ -2,9 +2,9 @@ use anyhow::Result;
 use colored::Colorize;
 use std::os::unix::fs::PermissionsExt;
 
-use crate::system::{domain_to_user, fpm_pool_path, run, run_status, user_exists, WWW_ROOT};
+use crate::system::{check_dns, domain_to_user, fpm_pool_path, run, run_status, user_exists, DnsStatus, WWW_ROOT};
 
-pub fn cmd_init(repo: &str, domains: &[String], php: &str, branch: Option<&str>) -> Result<()> {
+pub fn cmd_init(repo: &str, domains: &[String], php: &str, branch: Option<&str>, skip_dns: bool) -> Result<()> {
     if domains.is_empty() {
         anyhow::bail!("at least one domain is required");
     }
@@ -20,7 +20,38 @@ pub fn cmd_init(repo: &str, domains: &[String], php: &str, branch: Option<&str>)
     println!("  git:            {git_url}");
     println!("  directory:      {dir}");
     println!("  php:            {php}");
-    println!();
+    // --- DNS check ---
+    if skip_dns {
+        println!("{} DNS check skipped", "warn:".yellow());
+    } else {
+        println!("{}", "Checking DNS...".bold());
+        let mut dns_ok = true;
+        for domain in domains {
+            match check_dns(domain) {
+                DnsStatus::Ok(ips) => {
+                    let ip_str = ips.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(", ");
+                    println!("  {} {} -> {}", "ok:".green(), domain, ip_str);
+                }
+                DnsStatus::WrongServer { resolved, server } => {
+                    let resolved_str = resolved.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(", ");
+                    let server_str = server.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(", ");
+                    println!("  {} {} resolves to {} (server is {})", "fail:".red(), domain, resolved_str, server_str);
+                    dns_ok = false;
+                }
+                DnsStatus::Unresolved => {
+                    println!("  {} {} does not resolve", "fail:".red(), domain);
+                    dns_ok = false;
+                }
+            }
+        }
+        println!();
+        if !dns_ok {
+            anyhow::bail!(
+                "one or more domains do not point to this server\n  \
+                 Use --skip-dns-check to bypass (e.g. Cloudflare proxy, split-horizon DNS)"
+            );
+        }
+    }
 
     // 1. Create system user
     if user_exists(&user) {

@@ -106,6 +106,48 @@ pub fn owner_name(path: &Path) -> String {
     }
 }
 
+/// All IP addresses assigned to this server's network interfaces.
+pub fn server_ips() -> Vec<std::net::IpAddr> {
+    Command::new("hostname")
+        .arg("-I")
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default()
+        .split_whitespace()
+        .filter_map(|s| s.parse().ok())
+        .collect()
+}
+
+pub enum DnsStatus {
+    Ok(Vec<std::net::IpAddr>),
+    /// Resolved but points elsewhere
+    WrongServer { resolved: Vec<std::net::IpAddr>, server: Vec<std::net::IpAddr> },
+    /// Could not resolve at all
+    Unresolved,
+}
+
+/// Resolve a domain and check whether it points to this server.
+pub fn check_dns(domain: &str) -> DnsStatus {
+    use std::net::ToSocketAddrs;
+
+    let resolved: Vec<std::net::IpAddr> = match format!("{domain}:80").to_socket_addrs() {
+        Ok(addrs) => addrs.map(|a| a.ip()).collect(),
+        Err(_) => return DnsStatus::Unresolved,
+    };
+
+    if resolved.is_empty() {
+        return DnsStatus::Unresolved;
+    }
+
+    let server = server_ips();
+    if resolved.iter().any(|ip| server.contains(ip)) {
+        DnsStatus::Ok(resolved)
+    } else {
+        DnsStatus::WrongServer { resolved, server }
+    }
+}
+
 pub fn reload_fpm(php: &str) -> Result<()> {
     run_status("systemctl", &["reload", &format!("php{php}-fpm")])
 }

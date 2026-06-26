@@ -3,7 +3,7 @@ use clap::{Parser, Subcommand};
 mod commands;
 mod system;
 
-use commands::{audit, env, fpm, init, nginx, project, rm};
+use commands::{audit, env, fpm, init, nginx, project, rm, ssl};
 
 #[derive(Parser)]
 #[command(name = "sitectl", about = "Web server project administration", version)]
@@ -33,6 +33,11 @@ enum Commands {
     Env {
         #[command(subcommand)]
         action: EnvAction,
+    },
+    /// Manage SSL certificates
+    Ssl {
+        #[command(subcommand)]
+        action: SslAction,
     },
     /// Run security audit across all projects (or a single domain)
     Audit {
@@ -132,6 +137,12 @@ enum NginxAction {
 }
 
 #[derive(Subcommand)]
+enum SslAction {
+    /// Issue or renew an SSL certificate via certbot (reads domains from the nginx vhost)
+    Enable { domain: String },
+}
+
+#[derive(Subcommand)]
 enum EnvAction {
     /// List all .env files with their permissions
     List,
@@ -169,6 +180,9 @@ fn main() -> anyhow::Result<()> {
         Commands::Env { action } => match action {
             EnvAction::List => env::cmd_list(),
             EnvAction::Secure { domain } => env::cmd_secure(domain.as_deref()),
+        },
+        Commands::Ssl { action } => match action {
+            SslAction::Enable { domain } => ssl::cmd_enable(&domain),
         },
         Commands::Audit { domain } => audit::cmd_run(domain.as_deref()),
         Commands::Init { domain, repo, extra_domains, php, branch, skip_dns_check, no_ssl } => {

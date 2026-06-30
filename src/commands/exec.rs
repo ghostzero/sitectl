@@ -32,8 +32,15 @@ pub fn cmd_exec(domain: Option<&str>, args: &[String]) -> Result<()> {
         anyhow::bail!("project directory {dir} does not exist");
     }
 
-    let status = Command::new("sudo")
-        .args(["-H", "-u", &user, "--"])
+    let mut cmd = Command::new("sudo");
+    cmd.args(["-H", "-u", &user, "--"]);
+
+    // Forward the SSH agent socket so git+yubikey works inside the exec'd command.
+    if let Ok(sock) = std::env::var("SSH_AUTH_SOCK") {
+        cmd.args(["env", &format!("SSH_AUTH_SOCK={sock}")]);
+    }
+
+    let status = cmd
         .args(args)
         .current_dir(&dir)
         .status()

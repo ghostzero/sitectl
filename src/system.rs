@@ -148,6 +148,21 @@ pub fn check_dns(domain: &str) -> DnsStatus {
     }
 }
 
+/// Ensure a Debian package is installed, installing it if missing.
+pub fn ensure_package(package: &str) -> Result<()> {
+    let installed = Command::new("dpkg-query")
+        .args(["-W", "-f=${Status}", package])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).contains("install ok installed"))
+        .unwrap_or(false);
+
+    if !installed {
+        println!("installing missing dependency: {package}");
+        run_status("apt-get", &["install", "-y", package])?;
+    }
+    Ok(())
+}
+
 pub fn reload_fpm(php: &str) -> Result<()> {
     run_status("systemctl", &["reload", &format!("php{php}-fpm")])
 }

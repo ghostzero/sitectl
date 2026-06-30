@@ -1,7 +1,7 @@
 use anyhow::Result;
 use colored::Colorize;
 
-use crate::system::{check_dns, run_status, DnsStatus};
+use crate::system::{check_dns, ensure_package, run_status, DnsStatus};
 
 const AVAILABLE: &str = "/etc/nginx/sites-available";
 
@@ -63,6 +63,8 @@ pub fn cmd_enable(domain: &str) -> Result<()> {
              Fix DNS or use --skip-dns-check to bypass"
         );
     }
+
+    ensure_package("python3-certbot-nginx")?;
 
     let mut certbot_args = vec!["--nginx", "--non-interactive", "--agree-tos"];
     let d_args: Vec<String> = names.iter().flat_map(|d| vec!["-d".to_string(), d.clone()]).collect();

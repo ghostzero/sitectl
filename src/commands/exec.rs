@@ -36,7 +36,18 @@ pub fn cmd_exec(domain: Option<&str>, args: &[String]) -> Result<()> {
     cmd.args(["-H", "-u", &user, "--"]);
 
     // Forward the SSH agent socket so git+yubikey works inside the exec'd command.
+    // Use setfacl to grant access only to this project user — avoids exposing
+    // the socket to every user on the system.
     if let Ok(sock) = std::env::var("SSH_AUTH_SOCK") {
+        let sock_path = std::path::Path::new(&sock);
+        if sock_path.exists() {
+            let acl = format!("u:{user}:x");
+            if let Some(parent) = sock_path.parent() {
+                Command::new("setfacl").args(["-m", &acl, parent.to_str().unwrap_or("")]).status().ok();
+            }
+            let acl = format!("u:{user}:rw");
+            Command::new("setfacl").args(["-m", &acl, &sock]).status().ok();
+        }
         cmd.args(["env", &format!("SSH_AUTH_SOCK={sock}")]);
     }
 

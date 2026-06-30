@@ -1,6 +1,7 @@
 pub mod audit;
 pub mod backup;
 pub mod env;
+pub mod exec;
 pub mod fpm;
 pub mod init;
 pub mod nginx;

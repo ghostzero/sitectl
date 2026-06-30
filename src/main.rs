@@ -3,7 +3,7 @@ use clap::{Parser, Subcommand};
 mod commands;
 mod system;
 
-use commands::{audit, backup, env, fpm, init, nginx, project, rm, ssl};
+use commands::{audit, backup, env, exec, fpm, init, nginx, project, rm, ssl};
 
 #[derive(Parser)]
 #[command(name = "sitectl", about = "Web server project administration", version)]
@@ -53,6 +53,15 @@ enum Commands {
         /// Actually perform the removal (dry-run without this flag)
         #[arg(long)]
         yes: bool,
+    },
+    /// Run a command as the project user inside /var/www/<domain>
+    Exec {
+        /// Project domain — auto-detected from cwd if omitted (e.g. -d gleem.gg)
+        #[arg(short = 'd', long = "domain")]
+        domain: Option<String>,
+        /// Command and arguments to run (e.g. -- composer install)
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
     },
     /// Clone a GitHub repo and fully provision a new project
     Init {
@@ -188,6 +197,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Ssl { action } => match action {
             SslAction::Enable { domain } => ssl::cmd_enable(&domain),
         },
+        Commands::Exec { domain, args } => exec::cmd_exec(domain.as_deref(), &args),
         Commands::Backup { domain } => backup::cmd_backup(&domain),
         Commands::Audit { domain } => audit::cmd_run(domain.as_deref()),
         Commands::Init { domain, repo, extra_domains, php, branch, skip_dns_check, no_ssl } => {
